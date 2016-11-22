@@ -1,14 +1,12 @@
 #!/usr/bin/env python
 
-from pprint import pprint
 import argparse
 import logging
 import os
-import shutil
 import sys
 import subprocess
 
-_version = '0.1'
+_version = '0.2'
 print(os.path.basename(__file__) + ': v' + _version)
 _logger = logging.getLogger()
 _LOG_LEVEL = logging.DEBUG
@@ -70,7 +68,8 @@ def parse_arguments():
     parser.add_argument('--version', action='version',
                         version=_version)
     parser.add_argument('-v', '--verbose', action="store_true")
-    parser.add_argument('dir')
+    # parser.add_argument('dir')
+    parser.add_argument('start_dir')
     args = parser.parse_args()
     return args
 
@@ -102,10 +101,16 @@ if __name__ == "__main__":
 
     # Parge arguments
     args = parse_arguments()
-    pprint(args)
+    # pprint(args)
 
     # Setup logging
     _setup_logging(args)
 
     # Get checksum for dir
-    _get_dir_checksums(os.path.abspath(args.dir))
+    # _get_dir_checksums(os.path.abspath(args.dir))
+
+    # Get checksums for all dirs in path
+    start_path = os.path.abspath(args.start_dir)
+    _logger.info('Start path: %s', start_path)
+    for root, dirs, files in os.walk(start_path):
+        _get_dir_checksums(root)
