@@ -11,7 +11,7 @@ import subprocess
 import sys
 import time
 
-_version = '0.12'
+_version = '0.13'
 print(os.path.basename(__file__) + ': v' + _version)
 _logger = logging.getLogger()
 _LOG_LEVEL = logging.DEBUG
@@ -172,7 +172,7 @@ def _setup_logging(args):
     # Setup logging
     _logger.setLevel(_LOG_LEVEL)
     formatter = logging.Formatter(
-        '[%(asctime)s] (%(levelname)s) : %(message)s')
+        '[%(asctime)s] : %(message)s')
 
     # Check verbosity for console
     if args.verbose:
@@ -201,6 +201,7 @@ if __name__ == "__main__":
     while True:
         try:
             fcntl.lockf(lockfile, fcntl.LOCK_EX | fcntl.LOCK_NB)
+            print 'Lock acquired!'
             if os.path.isfile(_VP_FILE):
                 os.remove(_VP_FILE)
             break
@@ -226,7 +227,7 @@ if __name__ == "__main__":
 
     # Get checksums for all dirs in path
     start_path = os.path.abspath(args.start_dir)
-    _logger.info('Start path: %s', start_path)
+    _logger.warn('Start path: %s', start_path)
     for root, dirs, files in os.walk(start_path):
         # Ignore hidden dirs
         dirs[:] = [d for d in dirs if not d[0] == '.']
@@ -240,3 +241,5 @@ if __name__ == "__main__":
     lockfile.close()
     if os.path.isfile(_LOCKFILE):
         os.remove(_LOCKFILE)
+
+    _logger.warn('Done!')
