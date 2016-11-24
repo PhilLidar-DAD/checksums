@@ -11,7 +11,7 @@ import subprocess
 import sys
 import time
 
-_version = '0.13'
+_version = '0.14'
 print(os.path.basename(__file__) + ': v' + _version)
 _logger = logging.getLogger()
 _LOG_LEVEL = logging.DEBUG
@@ -213,7 +213,7 @@ if __name__ == "__main__":
             elif args.action == 'verify':
                 # Notify previously running script that we have priority
                 _touch(_VP_FILE)
-                duration = random.randint(0, 180)
+                duration = random.randint(0, 60)
                 print 'Sleeping for', duration, 'secs'
                 time.sleep(duration)
                 print 'Retrying acquiring lock...'
