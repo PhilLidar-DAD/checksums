@@ -5,18 +5,25 @@ import fcntl
 import json
 import logging
 import os
+import platform
 import subprocess
 import sys
 
-_version = '0.5'
+_version = '0.6'
 print(os.path.basename(__file__) + ': v' + _version)
 _logger = logging.getLogger()
 _LOG_LEVEL = logging.DEBUG
 _CONS_LOG_LEVEL = logging.INFO
 _FILE_LOG_LEVEL = logging.DEBUG
 
+# Check platform
+if platform.system() == 'Linux':
+    SHA1SUM = 'sha1sum'
+elif platform.system() == 'FreeBSD':
+    SHA1SUM = 'shasum'
+
 # Check if binaries exist
-BINS = ['shasum']
+BINS = [SHA1SUM]
 for bin in BINS:
     try:
         which = subprocess.check_output(['which', bin])
@@ -92,7 +99,7 @@ def _generate(dir_path):
 
         if compute_checksum:
             # Compute checksum
-            shasum = subprocess.check_output(['shasum', file_path])
+            shasum = subprocess.check_output([SHA1SUM, file_path])
             tokens = shasum.strip().split()
             checksums[f] = tokens[0]
         else:
@@ -120,7 +127,7 @@ def _verify(dir_path):
         if f in checksums and f in last_modified:
 
             # Compute checksum
-            shasum = subprocess.check_output(['shasum', file_path])
+            shasum = subprocess.check_output([SHA1SUM, file_path])
             checksum = shasum.strip().split()[0]
 
             # Get last modified time
