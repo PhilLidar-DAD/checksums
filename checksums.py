@@ -11,7 +11,7 @@ import subprocess
 import sys
 import time
 
-_version = '0.9'
+_version = '0.10'
 print(os.path.basename(__file__) + ': v' + _version)
 _logger = logging.getLogger()
 _LOG_LEVEL = logging.DEBUG
@@ -27,7 +27,7 @@ elif platform.system() == 'FreeBSD':
     SHA1SUM = 'shasum'
 
 # Check if binaries exist
-BINS = [SHA1SUM, 'touch']
+BINS = [SHA1SUM]
 for bin in BINS:
     try:
         which = subprocess.check_output(['which', bin])
@@ -199,6 +199,7 @@ if __name__ == "__main__":
             fcntl.lockf(lockfile, fcntl.LOCK_EX | fcntl.LOCK_NB)
             if os.path.isfile(_VP_FILE):
                 os.remove(_VP_FILE)
+            break
         except IOError:
             print 'Cannot acquire lock! Script might already be running.'
             if args.action == 'generate':
