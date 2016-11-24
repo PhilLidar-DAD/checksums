@@ -11,13 +11,14 @@ import sys
 import sleep
 import random
 
-_version = '0.7'
+_version = '0.8'
 print(os.path.basename(__file__) + ': v' + _version)
 _logger = logging.getLogger()
 _LOG_LEVEL = logging.DEBUG
 _CONS_LOG_LEVEL = logging.INFO
 _FILE_LOG_LEVEL = logging.DEBUG
-_VP = '.verify_pending'
+_VP_FILE = '.verify_pending'
+_LOCKFILE = '.lockfile'
 
 # Check platform
 if platform.system() == 'Linux':
@@ -116,7 +117,7 @@ def _generate(dir_path):
         last_modified[f] = lmt
 
         # Check if there's a pending verify
-        if os.path.isfile(_VP):
+        if os.path.isfile(_VP_FILE):
             # Exit immediately
             exit(1)
 
@@ -192,12 +193,12 @@ def _setup_logging(args):
 if __name__ == "__main__":
 
     # Try to acquire lock
-    lockfile = open('.lockfile', 'w')
+    lockfile = open(_LOCKFILE, 'w')
     while True:
         try:
             fcntl.lockf(lockfile, fcntl.LOCK_EX | fcntl.LOCK_NB)
-            if os.path.isfile(_VP):
-                os.remove(_VP)
+            if os.path.isfile(_VP_FILE):
+                os.remove(_VP_FILE)
         except IOError:
             print 'Cannot acquire lock! Script might already be running.'
             if args.action == 'generate':
@@ -205,7 +206,7 @@ if __name__ == "__main__":
                 exit(1)
             elif args.action == 'verify':
                 # Notify previously running script that we have priority
-                _touch(_VP)
+                _touch(_VP_FILE)
                 duration = random.randint(0, 300)
                 print 'Sleeping for', duration, 'secs'
                 time.sleep(duration)
@@ -232,3 +233,8 @@ if __name__ == "__main__":
             _generate(root)
         elif args.action == 'verify':
             _verify(root)
+
+    # Delete lock file
+    lockfile.close()
+    if os.path.isfile(_LOCKFILE):
+        os.remove(_LOCKFILE)
