@@ -8,13 +8,16 @@ import os
 import platform
 import subprocess
 import sys
+import sleep
+import random
 
-_version = '0.6'
+_version = '0.7'
 print(os.path.basename(__file__) + ': v' + _version)
 _logger = logging.getLogger()
 _LOG_LEVEL = logging.DEBUG
 _CONS_LOG_LEVEL = logging.INFO
 _FILE_LOG_LEVEL = logging.DEBUG
+_VP = '.verify_pending'
 
 # Check platform
 if platform.system() == 'Linux':
@@ -23,13 +26,18 @@ elif platform.system() == 'FreeBSD':
     SHA1SUM = 'shasum'
 
 # Check if binaries exist
-BINS = [SHA1SUM]
+BINS = [SHA1SUM, 'touch']
 for bin in BINS:
     try:
         which = subprocess.check_output(['which', bin])
     except subprocess.CalledProcessError:
         print bin, 'is not in path! Exiting.'
         exit(1)
+
+
+def _touch(fname, times=None):
+    with open(fname, 'a'):
+        os.utime(fname, times)
 
 
 def _load_files(dir_path):
@@ -107,6 +115,11 @@ def _generate(dir_path):
 
         last_modified[f] = lmt
 
+        # Check if there's a pending verify
+        if os.path.isfile(_VP):
+            # Exit immediately
+            exit(1)
+
     # Write checksums to file
     if checksums:
         with open(sha1sum_filepath, 'w') as open_file:
@@ -180,11 +193,23 @@ if __name__ == "__main__":
 
     # Try to acquire lock
     lockfile = open('.lockfile', 'w')
-    try:
-        fcntl.lockf(lockfile, fcntl.LOCK_EX | fcntl.LOCK_NB)
-    except IOError:
-        print 'Cannot acquire lock! Script might already be running. Exiting.'
-        exit(1)
+    while True:
+        try:
+            fcntl.lockf(lockfile, fcntl.LOCK_EX | fcntl.LOCK_NB)
+            if os.path.isfile(_VP):
+                os.remove(_VP)
+        except IOError:
+            print 'Cannot acquire lock! Script might already be running.'
+            if args.action == 'generate':
+                print 'Exiting...'
+                exit(1)
+            elif args.action == 'verify':
+                # Notify previously running script that we have priority
+                _touch(_VP)
+                duration = random.randint(0, 300)
+                print 'Sleeping for', duration, 'secs'
+                time.sleep(duration)
+                print 'Retrying acquiring lock...'
 
     # Parge arguments
     args = parse_arguments()
