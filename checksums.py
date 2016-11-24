@@ -11,7 +11,7 @@ import subprocess
 import sys
 import time
 
-_version = '0.10'
+_version = '0.11'
 print(os.path.basename(__file__) + ': v' + _version)
 _logger = logging.getLogger()
 _LOG_LEVEL = logging.DEBUG
@@ -192,6 +192,9 @@ def _setup_logging(args):
 
 if __name__ == "__main__":
 
+    # Parge arguments
+    args = parse_arguments()
+
     # Try to acquire lock
     lockfile = open(_LOCKFILE, 'w')
     while True:
@@ -212,9 +215,6 @@ if __name__ == "__main__":
                 print 'Sleeping for', duration, 'secs'
                 time.sleep(duration)
                 print 'Retrying acquiring lock...'
-
-    # Parge arguments
-    args = parse_arguments()
 
     # Set logging to warn only when verifying
     if args.action == 'verify':
