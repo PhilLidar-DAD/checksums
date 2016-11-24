@@ -1,13 +1,14 @@
 #!/usr/bin/env python
 
 import argparse
+import fcntl
 import json
 import logging
 import os
 import subprocess
 import sys
 
-_version = '0.4'
+_version = '0.5'
 print(os.path.basename(__file__) + ': v' + _version)
 _logger = logging.getLogger()
 _LOG_LEVEL = logging.DEBUG
@@ -170,9 +171,18 @@ def _setup_logging(args):
 
 if __name__ == "__main__":
 
+    # Try to acquire lock
+    lockfile = open('.lockfile', 'w')
+    try:
+        fcntl.lockf(lockfile, fcntl.LOCK_EX | fcntl.LOCK_NB)
+    except IOError:
+        print 'Cannot acquire lock! Script might already be running. Exiting.'
+        exit(1)
+
     # Parge arguments
     args = parse_arguments()
 
+    # Set logging to warn only when verifying
     if args.action == 'verify':
         _CONS_LOG_LEVEL = logging.WARN
 
