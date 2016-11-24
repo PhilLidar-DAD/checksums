@@ -11,7 +11,7 @@ import subprocess
 import sys
 import time
 
-_version = '0.11'
+_version = '0.12'
 print(os.path.basename(__file__) + ': v' + _version)
 _logger = logging.getLogger()
 _LOG_LEVEL = logging.DEBUG
@@ -118,6 +118,7 @@ def _generate(dir_path):
 
         # Check if there's a pending verify
         if os.path.isfile(_VP_FILE):
+            _logger.info('Verify pending file found! Exiting.')
             # Exit immediately
             exit(1)
 
@@ -211,7 +212,7 @@ if __name__ == "__main__":
             elif args.action == 'verify':
                 # Notify previously running script that we have priority
                 _touch(_VP_FILE)
-                duration = random.randint(0, 300)
+                duration = random.randint(0, 180)
                 print 'Sleeping for', duration, 'secs'
                 time.sleep(duration)
                 print 'Retrying acquiring lock...'
