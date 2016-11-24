@@ -11,7 +11,7 @@ import subprocess
 import sys
 import time
 
-_version = '0.14'
+_version = '0.15'
 print(os.path.basename(__file__) + ': v' + _version)
 _logger = logging.getLogger()
 _LOG_LEVEL = logging.DEBUG
@@ -172,7 +172,7 @@ def _setup_logging(args):
     # Setup logging
     _logger.setLevel(_LOG_LEVEL)
     formatter = logging.Formatter(
-        '[%(asctime)s] : %(message)s')
+        '[%(asctime)s] %(message)s')
 
     # Check verbosity for console
     if args.verbose:
@@ -186,7 +186,8 @@ def _setup_logging(args):
     _logger.addHandler(ch)
 
     # Setup file logging
-    fh = logging.FileHandler(os.path.basename(__file__) + '.log', mode='w')
+    fh = logging.FileHandler(os.path.splitext(
+        os.path.basename(__file__))[0] + '.log', mode='w')
     fh.setLevel(_FILE_LOG_LEVEL)
     fh.setFormatter(formatter)
     _logger.addHandler(fh)
