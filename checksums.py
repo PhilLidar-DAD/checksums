@@ -6,12 +6,12 @@ import json
 import logging
 import os
 import platform
+import random
 import subprocess
 import sys
-import sleep
-import random
+import time
 
-_version = '0.8'
+_version = '0.9'
 print(os.path.basename(__file__) + ': v' + _version)
 _logger = logging.getLogger()
 _LOG_LEVEL = logging.DEBUG
