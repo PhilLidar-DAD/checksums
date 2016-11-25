@@ -11,7 +11,7 @@ import subprocess
 import sys
 import time
 
-_version = '0.15'
+_version = '1.1'
 print(os.path.basename(__file__) + ': v' + _version)
 _logger = logging.getLogger()
 _LOG_LEVEL = logging.DEBUG
@@ -231,7 +231,7 @@ if __name__ == "__main__":
     _logger.warn('Start path: %s', start_path)
     for root, dirs, files in os.walk(start_path):
         # Ignore hidden dirs
-        dirs[:] = [d for d in dirs if not d[0] == '.']
+        dirs[:] = sorted([d for d in dirs if not d[0] == '.'])
 
         if args.action == 'generate':
             _generate(root)
