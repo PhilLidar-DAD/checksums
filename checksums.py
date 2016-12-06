@@ -155,6 +155,7 @@ def _verify_checksum(args):
 
     # Check if file has been verified already
     if _VERIFY_DONE and file_path in _VERIFY_DONE:
+        _logger.info('OK: %s', file_path)
         return
 
     # Compute checksum
