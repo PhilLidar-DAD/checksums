@@ -1,5 +1,6 @@
 #!/usr/bin/env python
 
+from datetime import datetime, timedelta
 import argparse
 import fcntl
 import json
@@ -8,19 +9,23 @@ import multiprocessing
 import os
 import platform
 import random
+import shutil
 import subprocess
 import sys
 import time
 
-_version = '2.1'
+_version = '2.2'
 print(os.path.basename(__file__) + ': v' + _version)
 _logger = logging.getLogger()
+_LOG_FILE = os.path.splitext(os.path.basename(__file__))[0] + '.log'
 _LOG_LEVEL = logging.DEBUG
 _CONS_LOG_LEVEL = logging.INFO
 _FILE_LOG_LEVEL = logging.DEBUG
 _VP_FILE = '.verify_pending'
 _LOCKFILE = '.lockfile'
 _CPU_USAGE = .5
+_VERIFY_LOG = os.path.splitext(os.path.basename(__file__))[0] + '_verify.log'
+_VERIFY_DONE = set()
 
 # Check platform
 if platform.system() == 'Linux':
@@ -148,6 +153,10 @@ def _verify_checksum(args):
     checksums, last_modified, file_path = args
     f = os.path.basename(file_path)
 
+    # Check if file has been verified already
+    if _VERIFY_DONE and file_path in _VERIFY_DONE:
+        return
+
     # Compute checksum
     shasum = subprocess.check_output([SHA1SUM, file_path])
     checksum = shasum.strip().split()[0]
@@ -206,8 +215,7 @@ def _setup_logging(args):
     _logger.addHandler(ch)
 
     # Setup file logging
-    fh = logging.FileHandler(os.path.splitext(
-        os.path.basename(__file__))[0] + '.log', mode='w')
+    fh = logging.FileHandler(_LOG_FILE, mode='w')
     fh.setLevel(_FILE_LOG_LEVEL)
     fh.setFormatter(formatter)
     _logger.addHandler(fh)
@@ -239,12 +247,23 @@ if __name__ == "__main__":
                 time.sleep(duration)
                 print 'Retrying acquiring lock...'
 
-    # Set logging to warn only when verifying
     if args.action == 'verify':
+        # Set logging to warn only when verifying
         _CONS_LOG_LEVEL = logging.WARN
 
     # Setup logging
     _setup_logging(args)
+
+    if args.action == 'verify':
+        # Check if verify log exists
+        if os.path.isfile(_VERIFY_LOG):
+            _logger.info('Reading existing verify log...')
+            # Read verified files from log file
+            with open(_VERIFY_LOG, 'r') as open_file:
+                for line in open_file:
+                    if 'OK' in line:
+                        tokens = line.strip().split('OK:')
+                        _VERIFY_DONE.add(tokens[-1].strip())
 
     # Start pool
     pool = multiprocessing.Pool(processes=int(multiprocessing.cpu_count() *
@@ -253,6 +272,7 @@ if __name__ == "__main__":
     # Get checksums for all dirs in path
     start_path = os.path.abspath(args.start_dir)
     _logger.warn('Start path: %s', start_path)
+    start_time = datetime.now()
     for root, dirs, files in os.walk(start_path):
         # Ignore hidden dirs
         dirs[:] = sorted([d for d in dirs if not d[0] == '.'])
@@ -269,8 +289,18 @@ if __name__ == "__main__":
         elif args.action == 'verify':
             _verify(root)
 
+            # Save verification progress every 30mins
+            if datetime.now() - start_time >= timedelta(minutes=30):
+                shutil.copy(_LOG_FILE, _VERIFY_LOG)
+                start_time = datetime.now()
+
     # Stop pool
     pool.close()
+
+    # Delete verify log if it exists
+    if args.action == 'verify':
+        if os.path.isfile(_VERIFY_LOG):
+            os.remove(_VERIFY_LOG)
 
     # Delete lock file
     lockfile.close()
