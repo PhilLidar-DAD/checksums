@@ -4,6 +4,7 @@ import argparse
 import fcntl
 import json
 import logging
+import multiprocessing
 import os
 import platform
 import random
@@ -11,7 +12,7 @@ import subprocess
 import sys
 import time
 
-_version = '1.1'
+_version = '2.1'
 print(os.path.basename(__file__) + ': v' + _version)
 _logger = logging.getLogger()
 _LOG_LEVEL = logging.DEBUG
@@ -19,6 +20,7 @@ _CONS_LOG_LEVEL = logging.INFO
 _FILE_LOG_LEVEL = logging.DEBUG
 _VP_FILE = '.verify_pending'
 _LOCKFILE = '.lockfile'
+_CPU_USAGE = .5
 
 # Check platform
 if platform.system() == 'Linux':
@@ -81,46 +83,54 @@ def _list_files(dir_path):
             yield f, file_path
 
 
+def _generate_checksum(args):
+
+    old_checksums, old_last_modified, file_path = args
+    f = os.path.basename(file_path)
+    compute_checksum = False
+
+    # Compute checksum if file hasn't been computed yet
+    if not f in old_checksums:
+        _logger.info("File does not have checksum. Computing checksum: %s",
+                     file_path)
+        compute_checksum = True
+
+    # Get last modified time
+    lmt = os.stat(file_path).st_mtime
+    # Recompute checksum if file has been modified
+    if f in old_last_modified and lmt > old_last_modified[f]:
+        _logger.info("File has been modified. Computing checksum: %s",
+                     file_path)
+        compute_checksum = True
+
+    if compute_checksum:
+        # Compute checksum
+        shasum = subprocess.check_output([SHA1SUM, file_path])
+        tokens = shasum.strip().split()
+        checksum = tokens[0]
+    else:
+        checksum = old_checksums[f]
+
+    return f, checksum, lmt
+
+
 def _generate(dir_path):
+
     # Load files
     (old_checksums, sha1sum_filepath,
         old_last_modified, last_modified_filepath) = _load_files(dir_path)
+
+    args = [(old_checksums, old_last_modified, file_path)
+            for _, file_path in _list_files(dir_path)]
+    r = pool.map_async(_generate_checksum, args)
+    results = r.get()
+
+    # Get results
     checksums = {}
     last_modified = {}
-
-    for f, file_path in _list_files(dir_path):
-
-        compute_checksum = False
-
-        # Compute checksum if file hasn't been computed yet
-        if not f in old_checksums:
-            _logger.info("File does not have checksum. Computing checksum: %s",
-                         file_path)
-            compute_checksum = True
-
-        # Get last modified time
-        lmt = os.stat(file_path).st_mtime
-        # Recompute checksum if file has been modified
-        if f in old_last_modified and lmt > old_last_modified[f]:
-            _logger.info("File has been modified. Computing checksum: %s",
-                         file_path)
-            compute_checksum = True
-
-        if compute_checksum:
-            # Compute checksum
-            shasum = subprocess.check_output([SHA1SUM, file_path])
-            tokens = shasum.strip().split()
-            checksums[f] = tokens[0]
-        else:
-            checksums[f] = old_checksums[f]
-
+    for f, checksum, lmt in sorted(results):
+        checksums[f] = checksum
         last_modified[f] = lmt
-
-        # Check if there's a pending verify
-        if os.path.isfile(_VP_FILE):
-            _logger.info('Verify pending file found! Exiting.')
-            # Exit immediately
-            exit(1)
 
     # Write checksums to file
     if checksums:
@@ -133,27 +143,37 @@ def _generate(dir_path):
                   indent=4, sort_keys=True)
 
 
+def _verify_checksum(args):
+
+    checksums, last_modified, file_path = args
+    f = os.path.basename(file_path)
+
+    # Compute checksum
+    shasum = subprocess.check_output([SHA1SUM, file_path])
+    checksum = shasum.strip().split()[0]
+
+    # Get last modified time
+    lmt = os.stat(file_path).st_mtime
+
+    # Only compare checksums if file hasn't been modified
+    if lmt == last_modified[f]:
+        if checksum == checksums[f]:
+            _logger.info('OK: %s', file_path)
+        else:
+            _logger.warn('FAILED: %s', file_path)
+
+
 def _verify(dir_path):
     # Load files
     checksums, _, last_modified, _ = _load_files(dir_path)
 
+    args = []
     for f, file_path in _list_files(dir_path):
-
         if f in checksums and f in last_modified:
+            args.append((checksums, last_modified, file_path))
 
-            # Compute checksum
-            shasum = subprocess.check_output([SHA1SUM, file_path])
-            checksum = shasum.strip().split()[0]
-
-            # Get last modified time
-            lmt = os.stat(file_path).st_mtime
-
-            # Only compare checksums if file hasn't been modified
-            if lmt == last_modified[f]:
-                if checksum == checksums[f]:
-                    _logger.info('OK: %s', file_path)
-                else:
-                    _logger.warn('FAILED: %s', file_path)
+    r = pool.map_async(_verify_checksum, args)
+    r.wait()
 
 
 def parse_arguments():
@@ -226,6 +246,10 @@ if __name__ == "__main__":
     # Setup logging
     _setup_logging(args)
 
+    # Start pool
+    pool = multiprocessing.Pool(processes=int(multiprocessing.cpu_count() *
+                                              _CPU_USAGE))
+
     # Get checksums for all dirs in path
     start_path = os.path.abspath(args.start_dir)
     _logger.warn('Start path: %s', start_path)
@@ -235,8 +259,18 @@ if __name__ == "__main__":
 
         if args.action == 'generate':
             _generate(root)
+
+            # Check if there's a pending verify
+            if os.path.isfile(_VP_FILE):
+                _logger.info('Verify pending file found! Exiting.')
+                # Exit immediately
+                exit(1)
+
         elif args.action == 'verify':
             _verify(root)
+
+    # Stop pool
+    pool.close()
 
     # Delete lock file
     lockfile.close()
