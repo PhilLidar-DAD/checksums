@@ -95,7 +95,7 @@ def _generate_checksum(args):
     compute_checksum = False
 
     # Compute checksum if file hasn't been computed yet
-    if not f in old_checksums:
+    if f not in old_checksums:
         _logger.info("File does not have checksum. Computing checksum: %s",
                      file_path)
         compute_checksum = True
@@ -186,7 +186,7 @@ def _verify(dir_path):
     r.wait()
 
 
-def parse_arguments():
+def _parse_arguments():
     # Parse arguments
     parser = argparse.ArgumentParser()
     parser.add_argument('--version', action='version',
@@ -221,10 +221,28 @@ def _setup_logging(args):
     fh.setFormatter(formatter)
     _logger.addHandler(fh)
 
+
 if __name__ == "__main__":
 
     # Parge arguments
-    args = parse_arguments()
+    args = _parse_arguments()
+
+    # Get action
+    args_action = args.action
+
+    # Check if verify log still exists
+    if os.path.isfile(_VERIFY_LOG):
+        # Force action to verify
+        _logger.info('Forcing action to verify...')
+        args_action = 'verify'
+
+        _logger.info('Reading existing verify log...')
+        # Read verified files from log file
+        with open(_VERIFY_LOG, 'r') as open_file:
+            for line in open_file:
+                if 'OK' in line:
+                    tokens = line.strip().split('OK:')
+                    _VERIFY_DONE.add(tokens[-1].strip())
 
     # Try to acquire lock
     lockfile = open(_LOCKFILE, 'w')
@@ -237,10 +255,10 @@ if __name__ == "__main__":
             break
         except IOError:
             print 'Cannot acquire lock! Script might already be running.'
-            if args.action == 'generate':
+            if args_action == 'generate':
                 print 'Exiting...'
                 exit(1)
-            elif args.action == 'verify':
+            elif args_action == 'verify':
                 # Notify previously running script that we have priority
                 _touch(_VP_FILE)
                 duration = random.randint(0, 60)
@@ -248,23 +266,12 @@ if __name__ == "__main__":
                 time.sleep(duration)
                 print 'Retrying acquiring lock...'
 
-    if args.action == 'verify':
+    if args_action == 'verify':
         # Set logging to warn only when verifying
         _CONS_LOG_LEVEL = logging.WARN
 
     # Setup logging
     _setup_logging(args)
-
-    if args.action == 'verify':
-        # Check if verify log exists
-        if os.path.isfile(_VERIFY_LOG):
-            _logger.info('Reading existing verify log...')
-            # Read verified files from log file
-            with open(_VERIFY_LOG, 'r') as open_file:
-                for line in open_file:
-                    if 'OK' in line:
-                        tokens = line.strip().split('OK:')
-                        _VERIFY_DONE.add(tokens[-1].strip())
 
     # Start pool
     pool = multiprocessing.Pool(processes=int(multiprocessing.cpu_count() *
@@ -278,7 +285,7 @@ if __name__ == "__main__":
         # Ignore hidden dirs
         dirs[:] = sorted([d for d in dirs if not d[0] == '.'])
 
-        if args.action == 'generate':
+        if args_action == 'generate':
             _generate(root)
 
             # Check if there's a pending verify
@@ -287,7 +294,7 @@ if __name__ == "__main__":
                 # Exit immediately
                 exit(1)
 
-        elif args.action == 'verify':
+        elif args_action == 'verify':
             _verify(root)
 
             # Save verification progress every 30mins
@@ -299,7 +306,7 @@ if __name__ == "__main__":
     pool.close()
 
     # Delete verify log if it exists
-    if args.action == 'verify':
+    if args_action == 'verify':
         if os.path.isfile(_VERIFY_LOG):
             os.remove(_VERIFY_LOG)
 
