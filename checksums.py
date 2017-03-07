@@ -252,16 +252,18 @@ if __name__ == "__main__":
     # Check if verify log still exists
     if os.path.isfile(_VERIFY_LOG):
         # Force action to verify
-        _logger.info('Forcing action to verify...')
+        print 'Forcing action to verify...'
         args_action = 'verify'
 
-        _logger.info('Reading existing verify log...')
+        print 'Reading existing verify log...'
         # Read verified files from log file
         with open(_VERIFY_LOG, 'r') as open_file:
             for line in open_file:
                 if 'OK' in line:
                     tokens = line.strip().split('OK:')
                     _VERIFY_DONE.add(tokens[-1].strip())
+
+    print 'Action:', args_action
 
     # Try to acquire lock
     lockfile = open(_LOCKFILE, 'w')
