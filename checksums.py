@@ -294,6 +294,8 @@ if __name__ == "__main__":
     # Setup logging
     _setup_logging(args)
 
+    _logger.warn('Action: %s', args_action)
+
     # Start pool
     pool = multiprocessing.Pool(processes=int(multiprocessing.cpu_count() *
                                               _CPU_USAGE))
