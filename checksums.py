@@ -1,5 +1,23 @@
 #!/usr/bin/env python
 
+'''
+Copyright (c) 2017, Kenneth Langga (klangga@gmail.com)
+All rights reserved.
+
+This program is free software: you can redistribute it and/or modify
+it under the terms of the GNU General Public License as published by
+the Free Software Foundation, either version 3 of the License, or
+any later version.
+
+This program is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+GNU General Public License for more details.
+
+You should have received a copy of the GNU General Public License
+along with this program.  If not, see <http://www.gnu.org/licenses/>.
+'''
+
 from datetime import datetime, timedelta
 import argparse
 import fcntl
@@ -14,17 +32,20 @@ import subprocess
 import sys
 import time
 
-_version = '2.2'
-print(os.path.basename(__file__) + ': v' + _version)
+_BASEDIR = os.path.dirname(os.path.abspath(__file__))
 _logger = logging.getLogger()
-_LOG_FILE = os.path.splitext(os.path.basename(__file__))[0] + '.log'
+_LOG_FILE = os.path.join(_BASEDIR,
+                         os.path.splitext(os.path.basename(__file__))[0] +
+                         '.log')
 _LOG_LEVEL = logging.DEBUG
 _CONS_LOG_LEVEL = logging.INFO
 _FILE_LOG_LEVEL = logging.DEBUG
-_VP_FILE = '.verify_pending'
-_LOCKFILE = '.lockfile'
+_VP_FILE = os.path.join(_BASEDIR, '.verify_pending')
+_LOCKFILE = os.path.join(_BASEDIR, '.lockfile')
 _CPU_USAGE = .5
-_VERIFY_LOG = os.path.splitext(os.path.basename(__file__))[0] + '_verify.log'
+_VERIFY_LOG = os.path.join(_BASEDIR,
+                           os.path.splitext(os.path.basename(__file__))[0] +
+                           '_verify.log')
 _VERIFY_DONE = set()
 
 # Check platform
@@ -189,8 +210,6 @@ def _verify(dir_path):
 def _parse_arguments():
     # Parse arguments
     parser = argparse.ArgumentParser()
-    parser.add_argument('--version', action='version',
-                        version=_version)
     parser.add_argument('-v', '--verbose', action="store_true")
     parser.add_argument('action', choices=['generate', 'verify'])
     parser.add_argument('start_dir')
