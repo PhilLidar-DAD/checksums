@@ -40,7 +40,7 @@ _LOG_FILE = os.path.join(_BASEDIR,
 _LOG_LEVEL = logging.DEBUG
 _CONS_LOG_LEVEL = logging.INFO
 _FILE_LOG_LEVEL = logging.DEBUG
-_VP_FILE = os.path.join(_BASEDIR, '.verify_pending')
+_VERIFY_PENDING_FILE = os.path.join(_BASEDIR, '.verify_pending')
 _LOCKFILE = os.path.join(_BASEDIR, '.lockfile')
 _CPU_USAGE = .5
 _VERIFY_LOG = os.path.join(_BASEDIR,
@@ -265,14 +265,19 @@ if __name__ == "__main__":
 
     print 'Action:', args_action
 
+    prev_action = ''
+    if os.path.isfile(_LOCKFILE):
+        prev_action = json.load(open(_LOCKFILE, 'r'))
+
     # Try to acquire lock
     lockfile = open(_LOCKFILE, 'w')
     while True:
         try:
             fcntl.lockf(lockfile, fcntl.LOCK_EX | fcntl.LOCK_NB)
             print 'Lock acquired!'
-            if os.path.isfile(_VP_FILE):
-                os.remove(_VP_FILE)
+            json.dump(args_action, lockfile)
+            if os.path.isfile(_VERIFY_PENDING_FILE):
+                os.remove(_VERIFY_PENDING_FILE)
             break
         except IOError:
             print 'Cannot acquire lock! Script might already be running.'
@@ -281,7 +286,7 @@ if __name__ == "__main__":
                 exit(1)
             elif args_action == 'verify':
                 # Notify previously running script that we have priority
-                _touch(_VP_FILE)
+                _touch(_VERIFY_PENDING_FILE)
                 duration = random.randint(0, 60)
                 print 'Sleeping for', duration, 'secs'
                 time.sleep(duration)
@@ -312,7 +317,7 @@ if __name__ == "__main__":
             _generate(root)
 
             # Check if there's a pending verify
-            if os.path.isfile(_VP_FILE):
+            if os.path.isfile(_VERIFY_PENDING_FILE):
                 _logger.info('Verify pending file found! Exiting.')
                 # Exit immediately
                 exit(1)
